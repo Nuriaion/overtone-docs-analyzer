@@ -105,7 +105,7 @@ string, which looks nasty when you display it."
 (defn query-lib-stats [libdef]
   (jdbc/with-connection *db*
     (jdbc/transaction
-     (let [lib-stats         (jdbc/with-query-results rs ["select * from libraries where name = ?" (:name libdef)]
+     (let [lib-stats (jdbc/with-query-results rs ["select * from libraries where name = ?" (:name libdef)]
                                (first rs))]
        (when lib-stats (assoc lib-stats 
 			 :var-count -1))))))
