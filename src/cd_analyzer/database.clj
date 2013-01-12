@@ -1,10 +1,10 @@
 (ns cd-analyzer.database
   (:use [cd-analyzer.util] 
 	[cd-analyzer.language]
-	[clojure.pprint :only (pprint)]
-        [clojure.contrib.string :only (as-str)])
+	[overtone.sc.machinery.ugen.categories]
+	[clojure.pprint :only (pprint)])
   (:require [clojure.java.jdbc :as jdbc]
-            [clojure.string :as str])
+            [clojure.string :as string])
   (:import [java.io File]))
 
 
@@ -40,8 +40,8 @@ string, which looks nasty when you display it."
    a record into an sql insert statement compatible with prepareStatement
     Returns [sql values-to-insert]"
   [table record]
-  (let [table-name (as-str table)
-        columns (map as-str (keys record))
+  (let [table-name (str table)
+        columns (map str (keys record))
         values (vals record)
         n (count columns)
         template (join "," (replicate n "?"))
@@ -96,12 +96,11 @@ string, which looks nasty when you display it."
   `(let [insert-fns# (build-insert-fns ~table-records)]
      (run-chained ~db insert-fns#)))
 
-(def ^{:dynamic true} *db* {:classname "com.mysql.jdbc.Driver"
-                            :subprotocol "mysql"
-                            :subname "//localhost:3306/clojuredocs_development?user=root&password="
-                            :create true
-                            :username "root"
-                            :password ""})
+(def ^{:dynamic true} *db* 	{:classname "org.postgresql.Driver"
+	     :subprotocol "postgresql"
+	     :subname "//localhost/clojuredocs_development"
+	     :username "postgres"
+	     :password "postgres"})
 
 (defn query-lib-stats [libdef]
   (jdbc/with-connection *db*
@@ -171,6 +170,14 @@ string, which looks nasty when you display it."
                                       (sql-now)]))]
     (insert-or-update test update insert)))
 
+(defn query-category [name]
+  (jdbc/with-connection *db*
+    (jdbc/transaction
+     (jdbc/with-query-results 
+       rs 
+       ["select * from categories where name=?" name]
+       (first rs)))))
+
 (defn query-var [namespace-id name version]
   (jdbc/with-connection *db*
     (jdbc/transaction
@@ -194,6 +201,40 @@ string, which looks nasty when you display it."
        rs
        ["select * from libraries where name=? and version=?" name version]
        (first rs)))))
+
+(def ugen-categories
+	(into #{} 
+	(map (partial string/join " > ") 
+	(apply concat 
+	(apply concat 
+	(for [keyval (seq overtone.sc.machinery.ugen.categories/UGEN-CATEGORIES)] 
+		(for [catslist (rest keyval)] 
+			(for [cats catslist] 
+				(flatten cats)))))))))
+
+(defn store-categories []
+   (try
+	(for [cat ugen-categories]
+	(let [existing (query-category (str cat))]
+       (jdbc/with-connection *db*
+         (jdbc/transaction
+            (if cat
+              (if existing
+                (jdbc/update-values 
+                 :categories 
+                 ["id=?" (:id existing)] 
+                 {:name (str cat)})
+                (jdbc/insert-values
+                 :categories
+                 [:name
+                  :created_at
+                  :updated_at]
+                 [(str cat)
+                  (java.sql.Timestamp. (System/currentTimeMillis))
+                  (java.sql.Timestamp. (System/currentTimeMillis))]))
+              (println "Category" cat "not found, skipping insert of " (str cat)))))))
+     (catch Exception e (println (str " -- " e)))))
+
 
 (defn store-var-map [library ns var-map]
   (try
@@ -349,7 +390,7 @@ string, which looks nasty when you display it."
     (jdbc/transaction
      (jdbc/insert-record :library_import_logs
 		    {:library_import_task_id task-id
-		     :level (as-str level)
+		     :level (str level)
 		     :message message
 		     :created_at (java.sql.Timestamp. (System/currentTimeMillis))}))))
 

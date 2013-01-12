@@ -68,7 +68,7 @@
     (try 
      (require (symbol ns-str))
      (find-ns (symbol ns-str))
-     (catch Exception e (println (str "Warning: couldn't resolve ns " ns-str))))))
+     (catch Exception e (println (str "Warning: couldn't resolve ns " ns-str (.getMessage e)))))))
 
 (defn ns-to-vars [#^Namespace ns]
   (if (nil? ns)
