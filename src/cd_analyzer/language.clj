@@ -92,10 +92,9 @@
 (defn source-for [v] 
   (try
    (let [sfunction (symbol (str (:ns (meta v))) (str (:name (meta v))))]
-        (if (= nil (source-fn sfunction)
+        (if (= nil (source-fn sfunction))
             (:src sfunction)
-            (source-fn sfunction))
-
+            (source-fn sfunction)))
    (catch Exception e nil)))
 
 (defn symbols-in [v]
@@ -117,15 +116,5 @@
 	 (filter identity)
 	 (filter #(not (:private (meta %))))
 	 (remove #(= % v)))))
-
-;;==== START Overtone specific ======================================================
-
-(defn overtone-src [ofunction]
-	(if (= nil (source ofunction))
-		(:src ofunction)
-		(source ofunction)))
-
-;;==== END Overtone specific ======================================================
-
 
 

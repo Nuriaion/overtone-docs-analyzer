@@ -121,8 +121,8 @@ string, which looks nasty when you display it."
 
 (defn url-friendly [s]
   (-> s
-      str/lower-case
-      (str/replace #"\s" "_")))
+      string/lower-case
+      (string/replace #"\s" "_")))
 
 (defn store-lib [libdef]
   (let [name (:name libdef)
