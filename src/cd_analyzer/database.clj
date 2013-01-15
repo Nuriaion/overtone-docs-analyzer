@@ -235,10 +235,33 @@ string, which looks nasty when you display it."
               (println "Category" cat "not found, skipping insert of " (str cat)))))))
      (catch Exception e (println (str " -- " e)))))
 
+(defn store-function-category-links [library ns var-map]
+	(prn (:categories var-map))
+	;;(prn (query-var (:id (query-ns (:ns var-map) (:version library))) (:name var-map)  (:version library)))
+     (try
+       (jdbc/with-connection *db*
+         (jdbc/transaction
+          (when-let [func-id (:id (query-var (:id (query-ns (:ns var-map) (:version library))) (:name var-map)  (:version library)))]
+			(prn (str "Func-id " func-id))
+            (let [fcats (map (partial string/join " > ") (:categories var-map))]
+              (doseq [fcat fcats]
+                (when (not (nil? fcat))
+				(prn (str "fcat " fcat))
+                  (let [existing (jdbc/with-query-results rs 
+                                   ["select * from categories_functions where function_id = ? and category_id = ? limit 1" func-id (:id (query-category fcat))] 
+                                   (first (doall rs)))]
+                    (when (not existing)
+                      (jdbc/insert-records :categories_functions {:function_id func-id :category_id (:id (query-category fcat))})))))
+              true))))
+       (catch Exception e 
+         (reportln "Exception in store-function-category-links: ") 
+         (reportln var-map " -> " (.getMessage e)) 
+         nil)))
+
 
 (defn store-var-map [library ns var-map]
   (try
-    (let [{:keys [ns name file line arglists added doc source]} var-map
+    (let [{:keys [ns name file line arglists added doc source categories]} var-map
           version (:version library)]
       (jdbc/with-connection *db*
         (jdbc/transaction
@@ -246,21 +269,21 @@ string, which looks nasty when you display it."
                existing (query-var (:id namespace) name version)]
            (if namespace
              (if existing
-               (jdbc/update-values 
-                :functions 
-                ["id=?" (:id existing)] 
-                {:namespace_id (:id namespace)
-                 :version version
-                 :name (str name)
-                 :file file 
-                 :line line 
-                 :arglists_comp (apply str (interpose "|" arglists))
-                 :added added
-                 :doc doc
-                 :shortdoc (if (:shortdoc existing) (:shortdoc existing) (apply str (take 70 doc)))
-                 :source source
-                 :updated_at (java.sql.Timestamp. (System/currentTimeMillis))
-                 :url_friendly_name (url-friendly name)})
+                 (jdbc/update-values 
+                  :functions 
+                  ["id=?" (:id existing)] 
+                  {:namespace_id (:id namespace)
+                   :version version
+                   :name (str name)
+                   :file file 
+                   :line line 
+                   :arglists_comp (apply str (interpose "|" arglists))
+                   :added added
+                   :doc doc
+                   :shortdoc (if (:shortdoc existing) (:shortdoc existing) (apply str (take 70 doc)))
+                   :source source
+                   :updated_at (java.sql.Timestamp. (System/currentTimeMillis))
+                   :url_friendly_name (url-friendly name)})
                (jdbc/insert-values
                 :functions
                 [:namespace_id :version :name :file :line :arglists_comp :added :doc :shortdoc :source :updated_at :created_at :url_friendly_name]
@@ -281,9 +304,10 @@ string, which looks nasty when you display it."
     (catch Exception e (println (str (:name var-map) " -- " e)))))
 
 (defn lookup-var-id [var-map]
-  (jdbc/transaction
-   (jdbc/with-query-results rs ["select * from functions where ns = ? and name = ? limit 1" (str (:ns var-map)) (str (:name var-map))]
-     (:id (first rs)))))
+  (jdbc/with-connection *db*
+   (jdbc/transaction
+    (jdbc/with-query-results rs ["select * from functions where namespace_id = ? and name = ? limit 1" (str (:ns var-map)) (str (:name var-map))]
+      (:id (first rs))))))
 
 (defn remove-stale-vars [libname timestamp]
   #_(let [to-remove
@@ -354,16 +378,16 @@ string, which looks nasty when you display it."
       (catch Exception e 
         (reportln "Exception in store-var-references: ") 
         (reportln var-map " -> " (.getMessage e)) 
-        nil)))
+        nil))))
 
-  (def ccld {:name "Clojure Core"
-             :root-dir "/Users/zkim/clojurelibs/clojure"
-             :src-dir "/Users/zkim/clojurelibs/clojure/src"
-             :description "Clojure core environment and runtime library."
-             :site-url "http://clojure.org"
-             :source-base-url "http://github.com/clojure/clojure/blob/master/src/clj/"
-             :copyright "&copy Rich Hickey.  All rights reserved."
-             :license "<a href=\"http://www.eclipse.org/legal/epl-v10.html\">Eclipse Public License 1.0</a>"}))
+(def ccld {:name "Clojure Core"
+           :root-dir "/Users/zkim/clojurelibs/clojure"
+           :src-dir "/Users/zkim/clojurelibs/clojure/src"
+           :description "Clojure core environment and runtime library."
+           :site-url "http://clojure.org"
+           :source-base-url "http://github.com/clojure/clojure/blob/master/src/clj/"
+           :copyright "&copy Rich Hickey.  All rights reserved."
+           :license "<a href=\"http://www.eclipse.org/legal/epl-v10.html\">Eclipse Public License 1.0</a>"})
 
 (defn track-import-start [libdef]
   (jdbc/with-connection *db*

@@ -12,7 +12,8 @@
   ([l i] (indt (+ l i))))
 
 (defn to-var-map [v]
-  (let [{:keys [name ns doc line file arglists added]} (meta v)]
+  (let [{:keys [name ns doc line file arglists added categories]} (meta v) 
+		{:keys [full-doc init args rates sc-name default-rate fn-names categories doc-string summary]} (try (:spec (v)) (catch Exception e {:full-doc "" :init nil :args {} :rates #{} :name "" :default-rate nil :fn-names {} :categories [] :doc "" :summary ""}))]
     {:name (str name)
      :ns (str ns)
      :doc (remove-leading-whitespace doc)
@@ -23,7 +24,8 @@
      :arglists arglists
      :vars-in (map #(let [meta (meta %)]
 		      {:ns (str (:ns meta))
-		       :name (str (:name meta))}) (vars-in v))}))
+		       :name (str (:name meta))}) (vars-in v))
+	 :categories categories}))
 
 (defn parse-ns-map [root-path]
   (fn [file]
@@ -119,7 +121,7 @@
 (defn pad [width thing]
   (apply str (take (- width (count (str thing))) (repeat " "))))
 
-(def *pad-width* 70)
+(def ^{:dynamic true} *pad-width* 70)
 
 (defn update-ns [i ns-map]
   (let [indt (partial indt i)]
@@ -140,7 +142,7 @@
 
 (defn report-on-lib [library]
   (let [start (System/currentTimeMillis)]
-    (try
+    ;;(try
      (reportln)
      (reportln (:name library) " :: Import Library Task")
      (reportln "=========================================")
@@ -160,14 +162,20 @@
 	 (reportln (indt) (:name p) (pad (:name p)) "(project)")
          (doseq [ns (sort-by :name (:namespaces p))]
            (reportln (indt) (:name ns) (pad (:name ns)) "(ns)")
-           (store-ns-map library ns)
+           ;;(store-ns-map library ns)
            (doseq [v (sort-by :name (:vars ns))]
              (reportln (indt 4) (:ns v) "/" (:name v) (pad (:name v)) "(var)")
-             (store-var-map library ns v))))
-       (reportln))
-     (catch Exception e
-       (reportln "=========================================")
-       (reportln "Import process failed: " e)))
+             ;;(store-var-map library ns v)
+             (store-function-category-links library ns v))))
+       (reportln)
+     ;;(doseq [v (sort-by :name vars)]
+     ;;  (let [v-to-vs-str (str (:name v))]
+     ;;   (report (indt) v-to-vs-str (pad v-to-vs-str) "(" (count (:vars-in v)) " references)")))
+        (reportln))
+    ;;(catch Exception e
+    ;;  (reportln "=========================================")
+    ;;  (reportln "Import process failed: " e))
+;;)
     (reportln (indt 2) "Took " (/ (- (System/currentTimeMillis) start) 1000.0) "s")))
 
 (comment
