@@ -13,7 +13,8 @@
 
 (defn to-var-map [v]
   (let [{:keys [name ns doc line file arglists added categories]} (meta v) 
-		{:keys [full-doc init args rates sc-name default-rate fn-names categories doc-string summary]} (try (:spec (v)) (catch Exception e {:full-doc "" :init nil :args {} :rates #{} :name "" :default-rate nil :fn-names {} :categories [] :doc "" :summary ""}))]
+		{:keys [full-doc init args rates sc-name default-rate fn-names categories doc-string summary]} 
+			(try (if (= "overtone.sc.ugens" (str (:orig-ns (meta v)))) (:spec (v)) {:full-doc "" :init nil :args {} :rates #{} :name "" :default-rate nil :fn-names {} :categories [] :doc "" :summary ""}) (catch Exception e {:full-doc "" :init nil :args {} :rates #{} :name "" :default-rate nil :fn-names {} :categories [] :doc "" :summary ""}))]
     {:name (str name)
      :ns (str ns)
      :doc (remove-leading-whitespace doc)
