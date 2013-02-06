@@ -1,9 +1,9 @@
 (ns cd-analyzer.database
   (:use [cd-analyzer.util] 
 	[cd-analyzer.language]
-	[overtone.sc.machinery.ugen.categories]
 	[clojure.pprint :only (pprint)])
   (:require [clojure.java.jdbc :as jdbc]
+            [overtone.sc.machinery.ugen.categories]
             [clojure.string :as string])
   (:import [java.io File]))
 
@@ -202,61 +202,60 @@ string, which looks nasty when you display it."
        ["select * from libraries where name=? and version=?" name version]
        (first rs)))))
 
-(def ugen-categories
-	(into #{} 
-	(map (partial string/join " > ") 
-	(apply concat 
-	(apply concat 
-	(for [keyval (seq overtone.sc.machinery.ugen.categories/UGEN-CATEGORIES)] 
-		(for [catslist (rest keyval)] 
-			(for [cats catslist] 
-				(flatten cats)))))))))
+ (def ugen-categories
+ 	(into #{} 
+ 	(map (partial string/join " > ") 
+ 	(apply concat 
+ 	(apply concat 
+ 	(for [keyval (seq overtone.sc.machinery.ugen.categories/UGEN-CATEGORIES)] 
+ 		(for [catslist (rest keyval)] 
+ 			(for [cats catslist] 
+ 				(flatten cats)))))))))
 
-(defn store-categories []
-   (try
-	(for [cat ugen-categories]
-	(let [existing (query-category (str cat))]
-       (jdbc/with-connection *db*
-         (jdbc/transaction
-            (if cat
-              (if existing
-                (jdbc/update-values 
-                 :categories 
-                 ["id=?" (:id existing)] 
-                 {:name (str cat)})
-                (jdbc/insert-values
-                 :categories
-                 [:name
-                  :created_at
-                  :updated_at]
-                 [(str cat)
-                  (java.sql.Timestamp. (System/currentTimeMillis))
-                  (java.sql.Timestamp. (System/currentTimeMillis))]))
-              (println "Category" cat "not found, skipping insert of " (str cat)))))))
-     (catch Exception e (println (str " -- " e)))))
+ (defn store-categories []
+    (try
+ 	(for [cat ugen-categories]
+ 	(let [existing (query-category (str cat))]
+        (jdbc/with-connection *db*
+          (jdbc/transaction
+             (if cat
+               (if existing
+                 (jdbc/update-values 
+                  :categories 
+                  ["id=?" (:id existing)] 
+                  {:name (str cat)})
+                 (jdbc/insert-values
+                  :categories
+                  [:name
+                   :created_at
+                   :updated_at]
+                  [(str cat)
+                   (java.sql.Timestamp. (System/currentTimeMillis))
+                   (java.sql.Timestamp. (System/currentTimeMillis))]))
+               (println "Category" cat "not found, skipping insert of " (str cat)))))))
+      (catch Exception e (println (str " -- " e)))))
 
-(defn store-function-category-links [library ns var-map]
-	(prn (:categories var-map))
-	;;(prn (query-var (:id (query-ns (:ns var-map) (:version library))) (:name var-map)  (:version library)))
-     (try
-       (jdbc/with-connection *db*
-         (jdbc/transaction
-          (when-let [func-id (:id (query-var (:id (query-ns (:ns var-map) (:version library))) (:name var-map)  (:version library)))]
-			(prn (str "Func-id " func-id))
-            (let [fcats (map (partial string/join " > ") (:categories var-map))]
-              (doseq [fcat fcats]
-                (when (not (nil? fcat))
-				(prn (str "fcat " fcat))
-                  (let [existing (jdbc/with-query-results rs 
-                                   ["select * from categories_functions where function_id = ? and category_id = ? limit 1" func-id (:id (query-category fcat))] 
-                                   (first (doall rs)))]
-                    (when (not existing)
-                      (jdbc/insert-records :categories_functions {:function_id func-id :category_id (:id (query-category fcat))})))))
-              true))))
-       (catch Exception e 
-         (reportln "Exception in store-function-category-links: ") 
-         (reportln var-map " -> " (.getMessage e)) 
-         nil)))
+ (defn store-function-category-links [library ns var-map]
+ 	(prn (:categories var-map))
+      (try
+        (jdbc/with-connection *db*
+          (jdbc/transaction
+           (when-let [func-id (:id (query-var (:id (query-ns (:ns var-map) (:version library))) (:name var-map)  (:version library)))]
+ 			(prn (str "Func-id " func-id))
+             (let [fcats (map (partial string/join " > ") (:categories var-map))]
+               (doseq [fcat fcats]
+                 (when (not (nil? fcat))
+ 				(prn (str "fcat " fcat))
+                   (let [existing (jdbc/with-query-results rs 
+                                    ["select * from categories_functions where function_id = ? and category_id = ? limit 1" func-id (:id (query-category fcat))] 
+                                    (first (doall rs)))]
+                     (when (not existing)
+                       (jdbc/insert-records :categories_functions {:function_id func-id :category_id (:id (query-category fcat))})))))
+               true))))
+        (catch Exception e 
+          (reportln "Exception in store-function-category-links: ") 
+          (reportln var-map " -> " (.getMessage e)) 
+          nil)))
 
 
 (defn store-var-map [library ns var-map]

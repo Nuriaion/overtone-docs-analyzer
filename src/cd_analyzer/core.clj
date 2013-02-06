@@ -41,14 +41,14 @@
 
 (defn parse-lein [#^File file]
   (let [rdr (LineNumberingPushbackReader. (FileReader. file))
-	lein (try (read rdr) (catch Exception e (throw (Exception. (str "parse-lein: " e)))))
-	props (reduce #(assoc %1 (first %2) (second %2)) {} (partition 2 (drop 3 lein)))
-	autodoc (-> (:autodoc props)
-		    (dissoc :root)
-		    (dissoc :source-path)
-		    (dissoc :output-path))]
+        lein (try (read rdr) (catch Exception e (throw (Exception. (str "parse-lein: " e)))))
+        props (reduce #(assoc %1 (first %2) (second %2)) {} (partition 2 (drop 3 lein)))
+        autodoc (-> (:autodoc props)
+              (dissoc :root)
+              (dissoc :source-path)
+              (dissoc :output-path))]
     (merge {:name (str (second lein))
-	    :version (nth lein 2)
+	    :version (nth lein 2 "")
 	    :description (:description props)
 	    :dependencies (:dependencies props)
 	    :source-root (mkfile (parent-file file) "src")}
@@ -163,54 +163,22 @@
 	 (reportln (indt) (:name p) (pad (:name p)) "(project)")
          (doseq [ns (sort-by :name (:namespaces p))]
            (reportln (indt) (:name ns) (pad (:name ns)) "(ns)")
-           ;;(store-ns-map library ns)
+           (store-ns-map library ns)
            (doseq [v (sort-by :name (:vars ns))]
              (reportln (indt 4) (:ns v) "/" (:name v) (pad (:name v)) "(var)")
-             ;;(store-var-map library ns v)
-             (store-function-category-links library ns v))))
+             (store-var-map library ns v)
+             (store-function-category-links library ns v)
+              )))
        (reportln)
-     ;;(doseq [v (sort-by :name vars)]
-     ;;  (let [v-to-vs-str (str (:name v))]
-     ;;   (report (indt) v-to-vs-str (pad v-to-vs-str) "(" (count (:vars-in v)) " references)")))
+     (doseq [v (sort-by :name vars)]
+       (let [v-to-vs-str (str (:name v))]
+        (report (indt) v-to-vs-str (pad v-to-vs-str) "(" (count (:vars-in v)) " references)")))
         (reportln))
     ;;(catch Exception e
     ;;  (reportln "=========================================")
     ;;  (reportln "Import process failed: " e))
 ;;)
     (reportln (indt 2) "Took " (/ (- (System/currentTimeMillis) start) 1000.0) "s")))
-
-(comment
-  (doseq [ns (sort-by :name nss)]
-    (report (indt) (:name ns) (pad (:name ns)) "(ns)")
-    (if (store-ns-map ns)
-      (reportln " Ok")
-      (reportln " Error")))
-  (reportln)
-  (doseq [v (sort-by :name vars)]
-    (report (indt) (:name v) (pad (:name v)) "(var)")
-    (if ((store-var-map (:name library) (:version library)) v)
-      (reportln " Ok")
-      (reportln " Error")))
-  (reportln)
-  (doseq [v (sort-by :name vars)]
-    (let [v-to-vs-str (str (:name v))]
-      (report (indt) v-to-vs-str (pad v-to-vs-str) "(" (count (:vars-in v)) " references)"))
-    (if (store-var-references v)
-      (reportln " Ok")
-      (reportln " Error")))
-  (reportln)
-  (reportln (indt) "Looking for vars to remove...")
-  (if (= 0 num-vars)
-    (reportln (indt) "No vars found, skipping removal of stale vars.")
-    (let [removed (remove-stale-vars (:name library) start)]
-      (if (= 0 (count removed))
-        (reportln (indt 2) "No vars removed.")
-        (do
-          (reportln (indt 2) "Removed " (count removed) " vars:")
-          (doseq [vr removed]
-            (reportln (indt 4) (:name vr) (pad (:name vr)) "(" (:ns vr) ")"))))))
-  (reportln "=========================================")
-  (reportln (indt) num-projects " projects, " num-nss " namespaces, " num-vars " vars found in " (:name library)))
 
 (defn run-update [root-dir]
   (report-on-lib (parse-library (File. root-dir))))
