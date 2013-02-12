@@ -38,10 +38,17 @@
 	 :web-path (.replace (.getAbsolutePath file) (.getAbsolutePath root-path) "")
 	 :vars (map to-var-map (ns-to-vars ns))}))))
 
+(defn extract-defproject [#^LineNumberingPushbackReader rdr]
+  (loop [leindef (read rdr)]
+    (if (or
+          (= "EOF reached" leindef) 
+          (= 'defproject (first leindef)))
+      leindef
+      (recur (read rdr false "EOF reached")))))
 
 (defn parse-lein [#^File file]
   (let [rdr (LineNumberingPushbackReader. (FileReader. file))
-        lein (try (read rdr) (catch Exception e (throw (Exception. (str "parse-lein: " e)))))
+        lein (try (extract-defproject rdr) (catch Exception e (throw (Exception. (str "parse-lein: " e)))))
         props (reduce #(assoc %1 (first %2) (second %2)) {} (partition 2 (drop 3 lein)))
         autodoc (-> (:autodoc props)
               (dissoc :root)
