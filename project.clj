@@ -6,6 +6,7 @@
 				 [org.slf4j/slf4j-api "1.6.1"]
 				 [ch.qos.logback/logback-classic "0.9.24"]
 				 [clj-stacktrace"0.1.3"]
+				 [overtone "0.9.0-SNAPSHOT"]
                  [hiccup "0.3.6"]]
   :source-paths ["src/" 
                  "/Users/xavriley/Projects/overtone/src" 
