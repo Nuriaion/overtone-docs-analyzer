@@ -3,7 +3,6 @@
 	[cd-analyzer.language]
 	[clojure.pprint :only (pprint)])
   (:require [clojure.java.jdbc :as jdbc]
-            [overtone.sc.machinery.ugen.categories]
             [clojure.string :as string])
   (:import [java.io File]))
 
@@ -98,7 +97,7 @@ string, which looks nasty when you display it."
 
 (def ^{:dynamic true} *db* 	{:classname "org.postgresql.Driver"
 	     :subprotocol "postgresql"
-	     :subname "//localhost/clojuredocs_development"
+	     :subname "//localhost/corelogicdocs_development"
 	     :username "postgres"
 	     :password "postgres"})
 
@@ -202,38 +201,38 @@ string, which looks nasty when you display it."
        ["select * from libraries where name=? and version=?" name version]
        (first rs)))))
 
- (def ugen-categories
- 	(into #{} 
- 	(map (partial string/join " > ") 
- 	(apply concat 
- 	(apply concat 
- 	(for [keyval (seq overtone.sc.machinery.ugen.categories/UGEN-CATEGORIES)] 
- 		(for [catslist (rest keyval)] 
- 			(for [cats catslist] 
- 				(flatten cats)))))))))
+ ;;(def ugen-categories
+ ;;	(into #{} 
+ ;;	(map (partial string/join " > ") 
+ ;;	(apply concat 
+ ;;	(apply concat 
+ ;;	(for [keyval (seq overtone.sc.machinery.ugen.categories/UGEN-CATEGORIES)] 
+ ;;		(for [catslist (rest keyval)] 
+ ;;			(for [cats catslist] 
+ ;;				(flatten cats)))))))))
 
- (defn store-categories []
-    (try
- 	(for [cat ugen-categories]
- 	(let [existing (query-category (str cat))]
-        (jdbc/with-connection *db*
-          (jdbc/transaction
-             (if cat
-               (if existing
-                 (jdbc/update-values 
-                  :categories 
-                  ["id=?" (:id existing)] 
-                  {:name (str cat)})
-                 (jdbc/insert-values
-                  :categories
-                  [:name
-                   :created_at
-                   :updated_at]
-                  [(str cat)
-                   (java.sql.Timestamp. (System/currentTimeMillis))
-                   (java.sql.Timestamp. (System/currentTimeMillis))]))
-               (println "Category" cat "not found, skipping insert of " (str cat)))))))
-      (catch Exception e (println (str " -- " e)))))
+ ;;(defn store-categories []
+ ;;   (try
+ ;;	(for [cat ugen-categories]
+ ;;	(let [existing (query-category (str cat))]
+ ;;       (jdbc/with-connection *db*
+ ;;         (jdbc/transaction
+ ;;            (if cat
+ ;;              (if existing
+ ;;                (jdbc/update-values 
+ ;;                 :categories 
+ ;;                 ["id=?" (:id existing)] 
+ ;;                 {:name (str cat)})
+ ;;                (jdbc/insert-values
+ ;;                 :categories
+ ;;                 [:name
+ ;;                  :created_at
+ ;;                  :updated_at]
+ ;;                 [(str cat)
+ ;;                  (java.sql.Timestamp. (System/currentTimeMillis))
+ ;;                  (java.sql.Timestamp. (System/currentTimeMillis))]))
+ ;;              (println "Category" cat "not found, skipping insert of " (str cat)))))))
+ ;;     (catch Exception e (println (str " -- " e)))))
 
  (defn store-function-category-links [library ns var-map]
  	(prn (:categories var-map))
