@@ -3,7 +3,7 @@
 ## Getting Started
 
 Set up the Rails app and database first by following the README here
-https://github.com/xavriley/clojuredocs
+https://github.com/xavriley/overtone-docs
 
 Then clone the overtone repo to your local machine `git clone git@github.com:overtone/overtone.git`
 
